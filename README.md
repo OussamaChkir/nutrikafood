@@ -1,56 +1,63 @@
-# Welcome to your Expo app 👋
+# Nutrika mobile app
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+React Native + Expo (SDK 58, Expo Router) app for [Nutrika](https://nutrikafood.com). It talks to the website's `/api/v1` (see `docs/api/mobile-v1.openapi.yaml` in the website repo).
 
-## Get started
+## Status
 
-1. Install dependencies
+| Milestone | State |
+| --- | --- |
+| Sign in with email, Google; account deletion; sign out | done (this repo) |
+| Sign in with Apple | next (required by App Store guideline 4.8 before submission) |
+| Scan, product, profiles, history, favorites, shopping list | next (API is ready) |
 
-   ```bash
-   npm install
-   ```
-
-2. Start the app
-
-   ```bash
-   npx expo start
-   ```
-
-In the output, you'll find options to open the app in a
-
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **src/app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
+## Run it
 
 ```bash
-npm run reset-project
+npm install
+cp .env.example .env.local   # fill in the Google client IDs
+npx expo start --dev-client
 ```
 
-This command will move the starter code to the **example** directory and create a blank **src/app** directory where you can start developing.
+Google Sign-In uses native code, so **Expo Go cannot run this app**. Make a development build:
 
-### Other setup steps
+```bash
+npx eas-cli@latest build --profile development --platform ios   # on a device
+npx eas-cli@latest build --profile development-simulator --platform ios   # simulator
+```
 
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
+Email sign-in works in any build. Without `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` the Google button shows an "unavailable" message instead of crashing.
 
-## Learn more
+## Google sign-in setup
 
-To learn more about developing your project with Expo, look at the following resources:
+1. Google Cloud Console, same project as the website's Google login, APIs & Services, Credentials.
+2. Create an **iOS** OAuth client with bundle ID `com.nutrikafood.app`. Put its ID in `EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID`.
+3. Use the existing **Web** client ID as `EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID` (it is the audience of the ID token).
+4. On the server (Vercel), add both IDs to `GOOGLE_CLIENT_IDS` (comma separated) so `POST /auth/google` accepts the tokens.
+5. For Android later: create an Android client with package `com.nutrikafood.app` and the SHA-1 of the signing key.
 
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
+## Checks
 
-## Join the community
+```bash
+npx tsc --noEmit
+npx expo lint
+npm test
+```
 
-Join our community of developers creating universal apps.
+## Layout
 
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+- `src/app/(auth)`: Welcome, Sign in, Create account, Forgot password (shown when signed out)
+- `src/app/(app)`: tabs shown when signed in. Routes are guarded with `Stack.Protected`
+- `src/lib/api`: API client. Refresh tokens rotate and are single use, so there is one refresh in flight at a time
+- `src/lib/session`: secure token storage (Keychain/Keystore) and the session provider
+- `src/lib/google.ts`: the only file that knows the Google sign-in library
+- `src/lib/i18n.ts`: English and French
+
+## App Store rules built into the app
+
+No user generated content, no payments, no label photo scan in the first release (owner decision, see the website repo `docs/app-store-guardrails.md`). Account deletion is in Profile (guideline 5.1.1(v)). Apple sign-in must ship together with Google.
+
+## Before release (TODO)
+
+- Replace the placeholder "G" in `src/components/google-button.tsx` with Google's official logo asset.
+- Replace the template app icon, adaptive icon and splash image with the Nutrika brand assets.
+- Sign in with Apple, medical disclaimer on health screens, demo account for App Review.
